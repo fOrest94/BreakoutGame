@@ -35,7 +35,7 @@ import java.util.Random;
 public class BreakoutEngine extends GameApplication {
 
     private Assets assets;
-    private IntegerProperty score = new SimpleIntegerProperty();
+    protected IntegerProperty score = new SimpleIntegerProperty();
     private PhysicsEntity desk, ball, brick;
     private Entity background;
     private double ballAcceleration = 5;
@@ -52,7 +52,6 @@ public class BreakoutEngine extends GameApplication {
     protected void initSettings(GameSettings settings) {
 
         settings.setTitle("Block Blaster");
-        settings.setVersion("1.0");
         settings.setWidth(640);
         settings.setHeight(960);
         settings.setIntroEnabled(false);
@@ -81,7 +80,7 @@ public class BreakoutEngine extends GameApplication {
             @Override
             public void onCollisionBegin(Entity a, Entity b) {
                 removeEntity(b);
-                ballAcceleration = ballAcceleration + 0.35;
+                setBallAcceleration(getBallAcceleration()+0.35);
                 score.set(score.get() + 100);
             }
 
@@ -158,7 +157,7 @@ public class BreakoutEngine extends GameApplication {
         this.addUINode(pane);
     }
 
-    private void onRestart()
+    protected void onRestart()
     {
         SingleMode singleMode = new SingleMode(this.gameStage);
         try
@@ -171,7 +170,7 @@ public class BreakoutEngine extends GameApplication {
         }
     }
 
-    private void onMainMenu()
+    protected void onMainMenu()
     {
         Menu mainMenu = new Menu();
         try
@@ -185,7 +184,7 @@ public class BreakoutEngine extends GameApplication {
         super.mainStage.hide();
     }
 
-    private void initBackGround() {
+    protected void initBackGround() {
 
         background = new Entity(ObjectType.BACKGROUND);
         background.setPosition(0, 0);
@@ -193,7 +192,7 @@ public class BreakoutEngine extends GameApplication {
         addEntities(background);
     }
 
-    private void initScreenBounds() {
+    protected void initScreenBounds() {
 
         PhysicsEntity top = new PhysicsEntity(ObjectType.BORDER);
         top.setPosition(0, 30);
@@ -216,7 +215,7 @@ public class BreakoutEngine extends GameApplication {
         addEntities(top, bottom, left, right);
     }
 
-    private void initDesks() {
+    protected void initDesks() {
 
         desk = new PhysicsEntity(ObjectType.DESK);
         desk.setPosition(getWidth() / 2 - 128 / 2, getHeight() - 25);
@@ -226,20 +225,22 @@ public class BreakoutEngine extends GameApplication {
         addEntities(desk);
     }
 
-    private void initBricks() {
+    protected void initBricks() {
 
         Random generator = new Random();
         boolean randomValue;
-
+        int l=0;
         for (int i = 1; i < 132; i++) {
             randomValue = generator.nextBoolean();
 
-            if (randomValue)
-                customBridge((i % 16) * 40, ((i / 16) + 1) * 40);
+            if (randomValue){
+                l++;
+                customBridge((i % 16) * 40, ((i / 16) + 1) * 40);}
         }
+        System.out.println(l);
     }
 
-    private void customBridge(int x, int y) {
+    protected void customBridge(int x, int y) {
 
         brick = new PhysicsEntity(ObjectType.BRICK);
         brick.setPosition(x, y);
@@ -248,7 +249,7 @@ public class BreakoutEngine extends GameApplication {
         addEntities(brick);
     }
 
-    private void initBalls() {
+    protected void initBalls() {
 
         FixtureDef fd = new FixtureDef();
         fd.restitution = 0.8f;
@@ -302,10 +303,16 @@ public class BreakoutEngine extends GameApplication {
         Point2D v1 = ball.getLinearVelocity();
         desk.setLinearVelocity(0, 0);
 
-        if (Math.abs(v1.getY()) < ballAcceleration) {
+        if (Math.abs(v1.getY()) < getBallAcceleration()) {
             double x = v1.getX();
             double signY = Math.signum(v1.getY());
-            ball.setLinearVelocity(x, signY * ballAcceleration);
+            ball.setLinearVelocity(x, signY * getBallAcceleration());
         }
+    }
+
+    protected double getBallAcceleration() {return ballAcceleration;}
+
+    protected void setBallAcceleration(double ballAcceleration) {
+        this.ballAcceleration = ballAcceleration;
     }
 }

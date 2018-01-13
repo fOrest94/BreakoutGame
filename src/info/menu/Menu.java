@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import info.game.BreakoutApp;
+import info.game.MultiMode;
 import info.game.SingleMode;
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
@@ -138,12 +139,12 @@ public class Menu extends Application implements Runnable
 
 			MenuButton btnServer = new MenuButton("Serwer");
 			btnServer.setOnMouseClicked(event -> {
-	
-			    SingleMode gameApp = new SingleMode((Stage)this.getScene().getWindow());
-				System.out.println("ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss");
+
+				MultiMode multiMode = new MultiMode((Stage)this.getScene().getWindow());
+
 			    try 
 			    {
-					gameApp.run();
+					multiMode.run();
 				}
 			    catch (Exception e) 
 			    {
