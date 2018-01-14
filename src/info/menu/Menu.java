@@ -5,8 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import info.game.BreakoutApp;
-import info.game.MultiMode;
-import info.game.SingleMode;
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.geometry.Pos;
@@ -39,7 +37,7 @@ public class Menu extends Application implements Runnable
 		Pane root = new Pane();
 		root.setPrefSize(640, 960);
 
-		InputStream is = Files.newInputStream(Paths.get("res/images/menu.jpg"));
+		InputStream is = this.getClass().getResourceAsStream("/assets/textures/menu.jpg");
 		Image img = new Image(is);
 		is.close();
  
@@ -84,12 +82,12 @@ public class Menu extends Application implements Runnable
 			menu1.setTranslateX(offset);
 			menu2.setTranslateX(offset);
 			
-			GameLogo gameLogo = new GameLogo("Block Blaster");
+			GameLogo gameLogo = new GameLogo("BlocksBricker");
 			
 			MenuButton btnResume0 = new MenuButton("Play Singleplayer");
 			btnResume0.setOnMouseClicked(event -> {
 
-				SingleMode gameApp = new SingleMode((Stage)this.getScene().getWindow());
+				BreakoutApp gameApp = new BreakoutApp("single", (Stage)this.getScene().getWindow());
 				try
 				{
 					gameApp.run();
@@ -140,7 +138,7 @@ public class Menu extends Application implements Runnable
 			MenuButton btnServer = new MenuButton("Serwer");
 			btnServer.setOnMouseClicked(event -> {
 
-				MultiMode multiMode = new MultiMode((Stage)this.getScene().getWindow());
+				BreakoutApp multiMode = new BreakoutApp(true, (Stage)this.getScene().getWindow());
 
 			    try 
 			    {

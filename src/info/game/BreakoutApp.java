@@ -3,14 +3,15 @@ package info.game;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import info.game.DataMessage;
-import info.game.RequestMessage;
 import info.menu.Menu;
+import javafx.scene.control.Label;
+import javafx.scene.paint.Paint;
 import org.jbox2d.collision.shapes.CircleShape;
 import org.jbox2d.dynamics.BodyType;
 import org.jbox2d.dynamics.FixtureDef;
@@ -25,7 +26,6 @@ import com.almasb.fxgl.net.Server;
 import com.almasb.fxgl.physics.CollisionHandler;
 import com.almasb.fxgl.physics.PhysicsEntity;
 import com.almasb.fxgl.physics.PhysicsManager;
-
 import javafx.animation.FadeTransition;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -60,6 +60,8 @@ public class BreakoutApp extends GameApplication implements Runnable
     private Map<KeyCode, Boolean> keys = new HashMap<>();
     private Queue<RequestMessage> requestQueue = new ConcurrentLinkedQueue<>();
     private Queue<DataMessage> updateQueue = new ConcurrentLinkedQueue<>();
+    private double speedOfBall = 5;
+    private int winningScore;
 
     private enum Type implements EntityType
     {
@@ -156,6 +158,12 @@ public class BreakoutApp extends GameApplication implements Runnable
             {
                 removeEntity(b);
                 score_1.set(score_1.get() + 100);
+                if(single.equals("single")) {
+                    speedOfBall = speedOfBall + 0.35;
+                    if(score_1.get() == winningScore)
+                        gameOverView();
+                }
+
             }
 
             @Override
@@ -173,6 +181,8 @@ public class BreakoutApp extends GameApplication implements Runnable
             public void onCollisionBegin(Entity a, Entity b)
             {
                 removeEntity(a);
+                if(single.equals("single"))
+                    gameOverView();
                 if(flagaBall) flagaBall = false;
                 else flagaBall2 = false;
             }
@@ -226,7 +236,11 @@ public class BreakoutApp extends GameApplication implements Runnable
 
     private void initScreenBounds()
     {
-        PhysicsEntity top = new PhysicsEntity(Type.BORDER);
+        PhysicsEntity top;
+        if(single.equals("single"))
+            top = new PhysicsEntity(Type.SCREEN);
+        else
+            top = new PhysicsEntity(Type.BORDER);
         top.setPosition(0, 30);
         top.setGraphics(new Rectangle(getWidth(), 10));
         top.setCollidable(true);
@@ -270,22 +284,30 @@ public class BreakoutApp extends GameApplication implements Runnable
 
     private void initBricks()
     {
-        for(int i = 0; i < 48; i++)
+        int brickQuantity=0;
+
+        for(int i = 0; i < 132; i++)
         {
-            brick = new PhysicsEntity(Type.BRICK);
-            if(!single.equals("single"))
+            if(!single.equals("single") && i <48)
             {
-                brick.setPosition((i%16) * 40, ((i/16) + 10) * 40);
+                customBridge((i%16) * 40, ((i/16) + 10) * 40);
             }
-            else
-                brick.setPosition((i%16) * 40, ((i/16) + 1) * 40);
-
-            brick.setGraphics(assets.getTexture("brick.png"));
-            brick.setCollidable(true);
-
-            addEntities(brick);
+            else if(new Random().nextBoolean()) {
+                customBridge((i % 16) * 40, ((i / 16) + 1) * 40);
+                brickQuantity++;
+            }
         }
+        winningScore = brickQuantity;
 
+    }
+
+    protected void customBridge(int x, int y) {
+
+        brick = new PhysicsEntity(Type.BRICK);
+        brick.setPosition(x, y);
+        brick.setGraphics(assets.getTexture("brick.png"));
+        brick.setCollidable(true);
+        addEntities(brick);
     }
 
     @Override
@@ -400,11 +422,11 @@ public class BreakoutApp extends GameApplication implements Runnable
         double yBall1 = v1.getY();
         desk1.setLinearVelocity(0, 0);
 
-        if(Math.abs(v1.getY()) < 5)
+        if(Math.abs(v1.getY()) < speedOfBall)
         {
             double x = v1.getX();
             double signY = Math.signum(v1.getY());
-            ball1.setLinearVelocity(x, signY * 5);
+            ball1.setLinearVelocity(x, signY * speedOfBall);
         }
 
         if(!single.equals("single"))
@@ -474,43 +496,35 @@ public class BreakoutApp extends GameApplication implements Runnable
             }
             else if(!isHost)
             {
-                Runnable thread1 = new Runnable ()
-                {
-                    public void run ()
-                    {
-                        DataMessage data = updateQueue.poll();
+                Runnable thread1 = () -> {
+                    DataMessage data = updateQueue.poll();
 
-                        if(data != null)
-                        {
-                            desk1.setLinearVelocity(data.x1, data.y1);
-                            desk2.setLinearVelocity(data.x2, data.y2);
-                            ball1.setLinearVelocity(data.x3, data.y3);
-                        }
+                    if(data != null)
+                    {
+                        desk1.setLinearVelocity(data.x1, data.y1);
+                        desk2.setLinearVelocity(data.x2, data.y2);
+                        ball1.setLinearVelocity(data.x3, data.y3);
                     }
                 };
 
-                Runnable thread2 = new Runnable ()
-                {
-                    public void run ()
+                Runnable thread2 = () -> {
+                    KeyCode[] codes = keys.keySet().stream().filter(k -> keys.get(k)).collect(Collectors.toList()).toArray(new KeyCode[0]);
+
+                    try
                     {
-                        KeyCode[] codes = keys.keySet().stream().filter(k -> keys.get(k)).collect(Collectors.toList()).toArray(new KeyCode[0]);
+                        client.send(new RequestMessage(codes));
+                        client.send(new DataMessage(xBall2, yBall2));
 
-                        try
+                        if(keys.get(KeyCode.ESCAPE))
                         {
-                            client.send(new RequestMessage(codes));
-                            client.send(new DataMessage(xBall2, yBall2));
-
-                            if(keys.get(KeyCode.ESCAPE))
-                            {
-                                exit();
-                            }
+                            exit();
                         }
-                        catch(Exception e)
-                        {
-                            log.warning("Failed to send message: "+e.getMessage());
-                        }
-                        keys.forEach((key, value) -> keys.put(key, false));
                     }
+                    catch(Exception e)
+                    {
+                        log.warning("Failed to send message: "+e.getMessage());
+                    }
+                    keys.forEach((key, value) -> keys.put(key, false));
                 };
 
                 thread2.run();
@@ -535,10 +549,43 @@ public class BreakoutApp extends GameApplication implements Runnable
         }
     }
 
+    public void gameOverView(){
+
+        Rectangle rect = new Rectangle (100, 40, 100, 100);
+        rect.setArcHeight(50);
+        rect.setArcWidth(50);
+        rect.setFill(Color.VIOLET);
+
+
+
+        FadeTransition ft = new FadeTransition(Duration.millis(3000));
+        ft.setFromValue(1.0);
+        ft.setToValue(0.3);
+        ft.setCycleCount(4);
+        ft.setAutoReverse(true);
+
+        ft.play();
+        initChoice();
+    }
+
     public void initChoice()
     {
+        Pane pane = new Pane();
+
+        if(score_1 == score_2){
+            Label  label = new Label();
+            label.setLayoutX(getWidth()/2-120);
+            label.setLayoutY(getHeight()/3);
+            label.setPrefSize(360,100);
+            label.setTextFill(Color.web("#ff0000"));
+            label.setFont(new Font("Arial",60));
+            label.setText("WINNER");
+            pane.getChildren().add(label);
+        }
+
+
         button1 = new Button();
-        button1.setLayoutX(getWidth()/3*2);
+        button1.setLayoutX(getWidth()/4-60);
         button1.setLayoutY(getHeight()/2);
         button1.setPrefSize(120, 60);
         button1.setText("Restart");
@@ -548,7 +595,7 @@ public class BreakoutApp extends GameApplication implements Runnable
         });
 
         button2 = new Button();
-        button2.setLayoutX(getWidth()/3*1);
+        button2.setLayoutX(getWidth()/4*3-60);
         button2.setLayoutY(getHeight()/2);
         button2.setPrefSize(120, 60);
         button2.setText("Get back to main menu");
@@ -557,26 +604,25 @@ public class BreakoutApp extends GameApplication implements Runnable
             onMainMenu();
         });
 
-        Pane pane = new Pane();
+
         pane.getChildren().addAll(button1, button2);
         this.addUINode(pane);
     }
 
-    private void onRestart()
+    protected void onRestart()
     {
-        BreakoutApp gameApp = new BreakoutApp(this.isHost, this.gameStage);
+        BreakoutApp singleMode = new BreakoutApp("single", gameStage);
         try
         {
-            gameApp.start(new Stage());
+            singleMode.start(singleMode.gameStage);
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
-        super.mainStage.hide();
     }
 
-    private void onMainMenu()
+    protected void onMainMenu()
     {
         Menu mainMenu = new Menu();
         try
@@ -602,5 +648,4 @@ public class BreakoutApp extends GameApplication implements Runnable
             e.printStackTrace();
         }
     }
-
 }
